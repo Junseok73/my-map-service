@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neseo 지도</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  #map { width: 100%; height: 100%; }
+  #msg {
+    position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+    z-index: 10; background: #fff; padding: 8px 14px; border-radius: 6px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3); font: 14px sans-serif; display: none;
+  }
+  #layers {
+    position: absolute; left: 10px; bottom: 28px; z-index: 10;
+    display: flex; gap: 6px;
+  }
+  #layers button {
+    padding: 8px 12px; border: 1px solid #bbb; border-radius: 6px;
+    background: #fff; font: 13px sans-serif; cursor: pointer;
+  }
+  #layers button.on { background: #03c75a; color: #fff; border-color: #03c75a; }
+</style>
+<!-- YOUR_CLIENT_ID 를 네이버 클라우드에서 발급받은 Client ID로 교체하세요.
+     인증 실패 시 ncpKeyId 를 ncpClientId 로 바꿔 보세요. -->
+<script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=8xuka0ypq6"></script>
+</head>
+<body>
+<div id="msg"></div>
+<div id="layers"></div>
+<div id="map"></div>
+
+<script>
+const KML_URL = 'Neseo.kml';
+
+function showMsg(t) {
+  const m = document.getElementById('msg');
+  m.textContent = t;
+  m.style.display = 'block';
+}
+
+window.navermap_authFailure = function () {
+  showMsg('네이버 지도 인증 실패 | 현재 주소(origin): ' + location.origin + ' | 전체: ' + location.href + ' | 버전: v3');
+};
+
+const map = new naver.maps.Map('map', {
+  center: new naver.maps.LatLng(35.2, 128.5),
+  zoom: 12,
+  zoomControl: true,
+  zoomControlOptions: { position: naver.maps.Position.TOP_LEFT },
+  mapTypeControl: true,
+  mapTypeControlOptions: {
+    style: naver.maps.MapTypeControlStyle.BUTTON,
+    position: naver.maps.Position.TOP_RIGHT
+  },
+  scaleControl: true
+});
+
+// 겹쳐 볼 수 있는 레이어 (버튼으로 켜고 끔)
+[
+  ['지적편집도', new naver.maps.CadastralLayer()],
+  ['실시간교통', new naver.maps.TrafficLayer()],
+  ['자전거', new naver.maps.BicycleLayer()]
+].forEach(function (d) {
+  const btn = document.createElement('button');
+  btn.textContent = d[0];
+  btn.onclick = function () {
+    const on = !!d[1].getMap();
+    d[1].setMap(on ? null : map);
+    btn.classList.toggle('on', !on);
+  };
+  document.getElementById('layers').appendChild(btn);
+});
+const infoWindow = new naver.maps.InfoWindow({ anchorSkew: true });
+const bounds = new naver.maps.LatLngBounds();
+
+// ---------- KML 유틸 ----------
+function child(el, tag) {
+  return Array.from(el.children).find(c => c.tagName === tag) || null;
+}
+function childText(el, tag) {
+  const c = child(el, tag);
+  return c ? c.textContent.trim() : '';
+}
+// KML 색상(aabbggrr) -> {color:'#rrggbb', opacity}
+function kmlColor(s, fallback) {
+  if (!s || s.length !== 8) return fallback;
+  const a = parseInt(s.slice(0, 2), 16) / 255;
+  const b = s.slice(2, 4), g = s.slice(4, 6), r = s.slice(6, 8);
+  return { color: '#' + r + g + b, opacity: a };
+}
+function parseCoords(el) {
+  return el.textContent.trim().split(/\s+/).filter(Boolean).map(t => {
+    const [lon, lat] = t.split(',').map(Number);
+    return new naver.maps.LatLng(lat, lon);
+  }).filter(p => !isNaN(p.lat()) && !isNaN(p.lng()));
+}
+
+fetch(KML_URL)
+  .then(r => { if (!r.ok) throw new Error(KML_URL + ' 로드 실패 (' + r.status + ')'); return r.text(); })
+  .then(text => {
+    const xml = new DOMParser().parseFromString(text, 'application/xml');
+    if (xml.getElementsByTagName('parsererror').length) throw new Error('KML 파싱 오류');
+
+    // 스타일 테이블
+    const styles = {}, styleMaps = {};
+    for (const s of xml.getElementsByTagName('Style')) {
+      const id = s.getAttribute('id');
+      if (id) styles['#' + id] = s;
+    }
+    for (const sm of xml.getElementsByTagName('StyleMap')) {
+      const id = sm.getAttribute('id');
+      for (const p of sm.getElementsByTagName('Pair')) {
+        if (childText(p, 'key') === 'normal') styleMaps['#' + id] = childText(p, 'styleUrl');
+      }
+    }
+    function resolveStyle(pm) {
+      const inline = child(pm, 'Style');
+      if (inline) return inline;
+      let u = childText(pm, 'styleUrl');
+      if (styleMaps[u]) u = styleMaps[u];
+      return styles[u] || null;
+    }
+
+    function bindInfo(overlay, name, desc) {
+      if (!name && !desc) return;
+      naver.maps.Event.addListener(overlay, 'click', function (e) {
+        const div = document.createElement('div');
+        div.style.cssText = 'padding:10px;max-width:260px;font:13px sans-serif;';
+        const h = document.createElement('b');
+        h.textContent = name;
+        div.appendChild(h);
+        if (desc) {
+          const d = document.createElement('div');
+          d.innerHTML = desc;
+          d.style.marginTop = '6px';
+          div.appendChild(d);
+        }
+        infoWindow.setContent(div);
+        infoWindow.open(map, e.coord || overlay.getPosition());
+      });
+    }
+
+    let count = 0;
+    for (const pm of xml.getElementsByTagName('Placemark')) {
+      const name = childText(pm, 'name');
+      const desc = childText(pm, 'description');
+      const st = resolveStyle(pm);
+
+      let line = { color: '#e74c3c', opacity: 1 }, width = 3;
+      let fill = { color: '#e74c3c', opacity: 0.3 }, doFill = true;
+      if (st) {
+        const ls = child(st, 'LineStyle');
+        if (ls) {
+          line = kmlColor(childText(ls, 'color'), line);
+          const w = parseFloat(childText(ls, 'width'));
+          if (w) width = w;
+        }
+        const ps = child(st, 'PolyStyle');
+        if (ps) {
+          fill = kmlColor(childText(ps, 'color'), fill);
+          if (childText(ps, 'fill') === '0') doFill = false;
+        }
+      }
+
+      // Point
+      for (const pt of pm.getElementsByTagName('Point')) {
+        const c = pt.getElementsByTagName('coordinates')[0];
+        if (!c) continue;
+        const pos = parseCoords(c)[0];
+        if (!pos) continue;
+        const mk = new naver.maps.Marker({ position: pos, map: map, title: name });
+        bindInfo(mk, name, desc);
+        bounds.extend(pos); count++;
+      }
+      // LineString
+      for (const ln of pm.getElementsByTagName('LineString')) {
+        const c = ln.getElementsByTagName('coordinates')[0];
+        if (!c) continue;
+        const path = parseCoords(c);
+        if (path.length < 2) continue;
+        const pl = new naver.maps.Polyline({
+          map: map, path: path,
+          strokeColor: line.color, strokeOpacity: line.opacity, strokeWeight: width,
+          clickable: true
+        });
+        bindInfo(pl, name, desc);
+        path.forEach(p => bounds.extend(p)); count++;
+      }
+      // Polygon
+      for (const pg of pm.getElementsByTagName('Polygon')) {
+        const paths = [];
+        const outer = pg.getElementsByTagName('outerBoundaryIs')[0];
+        if (outer) paths.push(parseCoords(outer.getElementsByTagName('coordinates')[0]));
+        for (const inner of pg.getElementsByTagName('innerBoundaryIs')) {
+          paths.push(parseCoords(inner.getElementsByTagName('coordinates')[0]));
+        }
+        if (!paths.length || paths[0].length < 3) continue;
+        const poly = new naver.maps.Polygon({
+          map: map, paths: paths,
+          strokeColor: line.color, strokeOpacity: line.opacity, strokeWeight: width,
+          fillColor: fill.color, fillOpacity: doFill ? fill.opacity : 0,
+          clickable: true
+        });
+        bindInfo(poly, name, desc);
+        paths[0].forEach(p => bounds.extend(p)); count++;
+      }
+    }
+
+    if (!count) { showMsg('KML에서 표시할 도형을 찾지 못했습니다.'); return; }
+    map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+  })
+  .catch(err => showMsg(err.message));
+</script>
+</body>
+</html>
