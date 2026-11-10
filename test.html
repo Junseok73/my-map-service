@@ -3,20 +3,29 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>네이버 지도 테스트</title>
-<script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=8xuka0ypq6"></script>
+<title>네이버 지도 테스트 v2</title>
 </head>
 <body style="margin:0">
+<div id="info" style="position:absolute;z-index:10;top:8px;left:8px;background:#fff;padding:6px 10px;font:13px sans-serif;border-radius:4px"></div>
 <div id="map" style="width:100%;height:100vh"></div>
 <script>
+  var CLIENT_ID = '8xuka0ypq6';
+  // 기본: ncpKeyId / 주소 뒤에 ?p=ncpClientId 를 붙이면 ncpClientId 로 시도
+  var param = new URLSearchParams(location.search).get('p') || 'ncpKeyId';
+  document.getElementById('info').textContent = '파라미터: ' + param + ' / ID: ' + CLIENT_ID;
+
   window.navermap_authFailure = function () {
-    alert('인증 실패 / 현재 주소: ' + location.origin);
+    alert('인증 실패 (' + param + ') / 현재 주소: ' + location.origin);
   };
-  var map = new naver.maps.Map('map', {
-    center: new naver.maps.LatLng(37.5666, 126.9784),
-    zoom: 14
-  });
-  new naver.maps.Marker({ position: new naver.maps.LatLng(37.5666, 126.9784), map: map });
+
+  var s = document.createElement('script');
+  s.src = 'https://oapi.map.naver.com/openapi/v3/maps.js?' + param + '=' + CLIENT_ID;
+  s.onload = function () {
+    var pos = new naver.maps.LatLng(37.5666, 126.9784);
+    var map = new naver.maps.Map('map', { center: pos, zoom: 14 });
+    new naver.maps.Marker({ position: pos, map: map });
+  };
+  document.head.appendChild(s);
 </script>
 </body>
 </html>
