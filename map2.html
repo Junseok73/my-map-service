@@ -24,6 +24,30 @@ var map = new naver.maps.Map('map', {
   }  
 });
 
+
+
+  
+// 지도 클릭 이벤트 (POI 클릭 감지)
+naver.maps.Event.addListener(map, 'click', function (e) {
+  // 클릭한 지점이 기본 지도상의 POI(주유소, 상점 등)인 경우
+  if (e.overlay && e.overlay.name) {
+    var poi = e.overlay;
+    var content = '<div style="padding:10px;font-size:12px;line-height:1.4;">' +
+                  '<strong>' + poi.name + '</strong>' +
+                  '</div>';
+    
+    infoWindow.setContent(content);
+    infoWindow.open(map, poi.coord);
+  } else {
+    // 지도 빈 곳을 클릭하면 정보창 닫기
+    infoWindow.close();
+  }
+});
+
+
+  
+
+  
 naver.maps.Event.once(map, 'init', function () {
   map.data.setStyle({
     strokeColor: '#e33',
