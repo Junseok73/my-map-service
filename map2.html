@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>네이버 지도</title>
+<script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=8xuka0ypq6"></script>
+</head>
+<body style="margin:0">
+<div id="map" style="height:100vh"></div>
+<script>
+  var pos = new naver.maps.LatLng(37.5666, 126.9784);
+  var map = new naver.maps.Map('map', { center: pos, zoom: 14 });
+  new naver.maps.Marker({ position: pos, map: map });
+</script>
+</body>
+</html>
