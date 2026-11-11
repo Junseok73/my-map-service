@@ -33,17 +33,20 @@ naver.maps.Event.once(map, 'init', function () {
     .then(function (t) {
       map.data.addKml(new DOMParser().parseFromString(t, 'text/xml'));
 
-      var bounds = null;
-      map.data.getAllFeature().forEach(function (f) {
-        var b = f.getBounds();
-        if (!b) return;
-        if (bounds) bounds.union(b);
-        else bounds = new naver.maps.LatLngBounds(b.getSW(), b.getNE());
+      var bounds = new naver.maps.LatLngBounds();
+      var n = 0;
+      xml.querySelectorAll('coordinates').forEach(function (c) {
+        c.textContent.trim().split(/\s+/).forEach(function (s) {
+          var a = s.split(',');
+          var lng = parseFloat(a[0]), lat = parseFloat(a[1]);
+          if (!isNaN(lng) && !isNaN(lat)) {
+            bounds.extend(new naver.maps.LatLng(lat, lng));
+            n++;
+          }
+        });
       });
-      if (bounds) map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
-
-
-      
+      console.log('KML 좌표 개수:', n);
+      if (n > 0) map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
     });
 });
 </script>
