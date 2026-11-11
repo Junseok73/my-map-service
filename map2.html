@@ -15,6 +15,14 @@ var map = new naver.maps.Map('map', {
 });
 
 naver.maps.Event.once(map, 'init', function () {
+  map.data.setStyle({
+    strokeColor: '#e33',
+    strokeWeight: 3,
+    strokeOpacity: 0.9,
+    fillColor: '#e33',
+    fillOpacity: 0.2
+  });  
+  
   fetch('Neseo.kml')
     .then(function (r) { return r.text(); })
     .then(function (t) {
