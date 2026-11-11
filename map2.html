@@ -16,6 +16,11 @@ var map = new naver.maps.Map('map', {
   mapTypeControlOptions: {
     style: naver.maps.MapTypeControlStyle.BUTTON,
     position: naver.maps.Position.TOP_RIGHT
+// 컨트롤 버튼에 '일반'과 '하이브리드'만 표시되도록 설정
+    mapTypeIds: [
+      naver.maps.MapTypeId.NORMAL,
+      naver.maps.MapTypeId.HYBRID
+    ]    
   }  
 });
 
