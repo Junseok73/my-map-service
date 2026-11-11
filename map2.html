@@ -32,6 +32,18 @@ naver.maps.Event.once(map, 'init', function () {
     .then(function (r) { return r.text(); })
     .then(function (t) {
       map.data.addKml(new DOMParser().parseFromString(t, 'text/xml'));
+
+      var bounds = null;
+      map.data.getAllFeature().forEach(function (f) {
+        var b = f.getBounds();
+        if (!b) return;
+        if (bounds) bounds.union(b);
+        else bounds = new naver.maps.LatLngBounds(b.getSW(), b.getNE());
+      });
+      if (bounds) map.fitBounds(bounds, { top: 40, right: 40, bottom: 40, left: 40 });
+
+
+      
     });
 });
 </script>
