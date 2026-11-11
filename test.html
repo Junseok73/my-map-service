@@ -12,7 +12,7 @@
   var CLIENT_ID = '8xuka0ypq6';
   // 기본: ncpKeyId / 주소 뒤에 ?p=ncpClientId 를 붙이면 ncpClientId 로 시도
   var param = new URLSearchParams(location.search).get('p') || 'ncpKeyId';
-  document.getElementById('info').textContent = '파라미터: ' + param + ' / ID: ' + CLIENT_ID;
+  // document.getElementById('info').textContent = '파라미터: ' + param + ' / ID: ' + CLIENT_ID;
 
   window.navermap_authFailure = function () {
     alert('인증 실패 (' + param + ') / 현재 주소: ' + location.origin);
