@@ -9,9 +9,18 @@
 <body style="margin:0">
 <div id="map" style="height:100vh"></div>
 <script>
-  var pos = new naver.maps.LatLng(37.5666, 126.9784);
-  var map = new naver.maps.Map('map', { center: pos, zoom: 14 });
-  new naver.maps.Marker({ position: pos, map: map });
+var map = new naver.maps.Map('map', {
+  center: new naver.maps.LatLng(37.5666, 126.9784),
+  zoom: 12
+});
+
+naver.maps.Event.once(map, 'init', function () {
+  fetch('Neseo.kml')
+    .then(function (r) { return r.text(); })
+    .then(function (t) {
+      map.data.addKml(new DOMParser().parseFromString(t, 'text/xml'));
+    });
+});
 </script>
 </body>
 </html>
