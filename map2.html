@@ -31,7 +31,8 @@ naver.maps.Event.once(map, 'init', function () {
   fetch('Neseo.kml')
     .then(function (r) { return r.text(); })
     .then(function (t) {
-      map.data.addKml(new DOMParser().parseFromString(t, 'text/xml'));
+      var xml = new DOMParser().parseFromString(t, 'text/xml');
+      map.data.addKml(xml);
 
       var bounds = new naver.maps.LatLngBounds();
       var n = 0;
